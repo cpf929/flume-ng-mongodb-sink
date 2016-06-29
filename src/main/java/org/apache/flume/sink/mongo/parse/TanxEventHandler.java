@@ -25,8 +25,8 @@ public class TanxEventHandler implements EventHandler {
 		}
 
 		BasicDBObjectBuilder builder = BasicDBObjectBuilder.start();
-		JSONObject device = jsonObject.getJSONObject(FieldName.Tanx.mobile)
-				.getJSONObject(FieldName.Tanx.device);
+		JSONObject mobile = jsonObject.getJSONObject(FieldName.Tanx.mobile);
+		JSONObject device = mobile.getJSONObject(FieldName.Tanx.device);
 		String deviceId = device.getString(FieldName.Tanx.device_id);
 
 		// 新增， 不更新的
@@ -57,8 +57,7 @@ public class TanxEventHandler implements EventHandler {
 		// mac
 		String mac = device.getString(FieldName.Tanx.mac);
 		if (StringUtils.isNotBlank(mac)) {
-			setOnInsertObj.append(FieldName.field_mac, mac)
-					.append(FieldName.field_macMd5, DigestUtils.md5Hex(mac))
+			setOnInsertObj.append(FieldName.field_mac, mac).append(FieldName.field_macMd5, DigestUtils.md5Hex(mac))
 					.append(FieldName.field_macSha1, DigestUtils.sha1Hex(mac));
 		}
 		// device_size
@@ -68,18 +67,40 @@ public class TanxEventHandler implements EventHandler {
 
 		builder.add(MongoSink.OP_SET_ON_INSERT, setOnInsertObj);
 
-		// 追加的数据, ip
-		builder.add(MongoSink.OP_ADD_TO_SET,
-				new BasicDBObject(FieldName.field_ipList, jsonObject.getString(FieldName.Tanx.ip)));
+		BasicDBObject addToSetObj = new BasicDBObject();
+
+		// ip
+		if (StringUtils.isNotBlank(jsonObject.getString(FieldName.Tanx.ip))) {
+			addToSetObj.append(FieldName.field_ipList, jsonObject.getString(FieldName.Tanx.ip));
+		}
+
 		// 追加的数据，geo
 		if (StringUtils.isNotBlank(device.getString(FieldName.Tanx.latitude))
 				&& StringUtils.isNotBlank(device.getString(FieldName.Tanx.longitude))) {
-			BasicDBObject geoObj = new BasicDBObject(FieldName.field_latitude,
-					device.getString(FieldName.Tanx.latitude)).append(FieldName.field_longitude,
-							device.getString(FieldName.Tanx.longitude));
-			builder.add(MongoSink.OP_ADD_TO_SET, new BasicDBObject(FieldName.field_geoList, geoObj));
+			addToSetObj.append(FieldName.field_geoList,
+					new BasicDBObject(FieldName.field_latitude, device.getString(FieldName.Tanx.latitude))
+							.append(FieldName.field_longitude, device.getString(FieldName.Tanx.longitude)));
 		}
-		
+
+		// app
+		if (StringUtils.isNotBlank(mobile.getString(FieldName.Tanx.package_name))) {
+			BasicDBObject appObj = new BasicDBObject();
+			appObj.append(FieldName.field_packageName, mobile.getString(FieldName.Tanx.package_name));
+			if (StringUtils.isNotBlank(mobile.getString(FieldName.Tanx.app_name))) {
+				appObj.append(FieldName.field_appName, mobile.getString(FieldName.Tanx.app_name));
+			}
+
+			// app分类
+			if (mobile.getJSONArray(FieldName.Tanx.app_categories) != null
+					&& !mobile.getJSONArray(FieldName.Tanx.app_categories).isEmpty()) {
+				appObj.append(FieldName.field_appCategorys, mobile.getJSONArray(FieldName.Tanx.app_categories)
+						.getJSONObject(0).getString(FieldName.Tanx.id));
+			}
+
+			addToSetObj.append(FieldName.field_appList, appObj);
+		}
+
+		builder.add(MongoSink.OP_ADD_TO_SET, addToSetObj);
 
 		return builder.get();
 	}
@@ -97,8 +118,7 @@ public class TanxEventHandler implements EventHandler {
 			return false;
 		}
 
-		JSONObject device = jsonObject.getJSONObject(FieldName.Tanx.mobile)
-				.getJSONObject(FieldName.Tanx.device);
+		JSONObject device = jsonObject.getJSONObject(FieldName.Tanx.mobile).getJSONObject(FieldName.Tanx.device);
 
 		if (device == null || StringUtils.isBlank(device.getString(FieldName.Tanx.device_id))) {
 			return false;

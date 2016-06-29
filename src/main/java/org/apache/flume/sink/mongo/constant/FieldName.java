@@ -47,6 +47,7 @@ public abstract class FieldName {
 		public static final String device_size = "device_size";
 		public static final String longitude = "longitude";
 		public static final String latitude = "latitude";
+		public static final String id = "id";
 
 	}
 
