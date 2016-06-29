@@ -1,8 +1,8 @@
 package org.apache.flume.sink.mongo;
 
+import java.io.UnsupportedEncodingException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +17,8 @@ import org.apache.flume.EventDeliveryException;
 import org.apache.flume.Transaction;
 import org.apache.flume.conf.Configurable;
 import org.apache.flume.sink.AbstractSink;
+import org.apache.flume.sink.mongo.constant.FieldName;
+import org.apache.flume.sink.mongo.parse.HandlerFactory;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.DateTimeFormatterBuilder;
@@ -24,20 +26,14 @@ import org.joda.time.format.DateTimeParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.mongodb.BasicDBObject;
 import com.mongodb.BasicDBObjectBuilder;
 import com.mongodb.CommandResult;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
 import com.mongodb.Mongo;
-import com.mongodb.MongoException;
 import com.mongodb.WriteConcern;
-import com.mongodb.util.JSON;
 
-/**
- * User: guoqiang.li Date: 12-9-12 Time: 下午3:31
- */
 public class MongoSink extends AbstractSink implements Configurable {
 	private static Logger logger = LoggerFactory.getLogger(MongoSink.class);
 
@@ -71,6 +67,7 @@ public class MongoSink extends AbstractSink implements Configurable {
 	public static final String OP_INC = "$inc";
 	public static final String OP_SET = "$set";
 	public static final String OP_SET_ON_INSERT = "$setOnInsert";
+	public static final String OP_ADD_TO_SET = "$addToSet";
 
 	public static final boolean DEFAULT_AUTHENTICATION_ENABLED = false;
 	public static final String DEFAULT_HOST = "localhost";
@@ -169,73 +166,10 @@ public class MongoSink extends AbstractSink implements Configurable {
 		return status;
 	}
 
-	// private void saveEvents(Map<String, List<DBObject>> eventMap) {
-	// if (eventMap.isEmpty()) {
-	// logger.debug("eventMap is empty");
-	// return;
-	// }
-	//
-	// for (Map.Entry<String, List<DBObject>> entry : eventMap.entrySet()) {
-	// List<DBObject> docs = entry.getValue();
-	// if (logger.isDebugEnabled()) {
-	// logger.debug("collection: {}, length: {}", entry.getKey(), docs.size());
-	// }
-	// int separatorIndex = entry.getKey().indexOf(NAMESPACE_SEPARATOR);
-	// String eventDb = entry.getKey().substring(0, separatorIndex);
-	// String collectionNameVar = entry.getKey().substring(separatorIndex + 1);
-	//
-	// // Warning: please change the WriteConcern level if you need high
-	// // datum consistence.
-	// DB dbRef = mongo.getDB(eventDb);
-	// if (authentication_enabled) {
-	// boolean authResult = dbRef.authenticate(username,
-	// password.toCharArray());
-	// if (!authResult) {
-	// logger.error("Failed to authenticate user: " + username + " with
-	// password: " + password
-	// + ". Unable to write events.");
-	// return;
-	// }
-	// }
-	// try {
-	// CommandResult result =
-	// dbRef.getCollection(collectionNameVar).insert(docs, WriteConcern.SAFE)
-	// .getLastError();
-	// if (result.ok()) {
-	// String errorMessage = result.getErrorMessage();
-	// if (errorMessage != null) {
-	// logger.error("can't insert documents with error: {} ", errorMessage);
-	// logger.error("with exception", result.getException());
-	// throw new MongoException(errorMessage);
-	// }
-	// } else {
-	// logger.error("can't get last error");
-	// }
-	// } catch (Exception e) {
-	// if (!(e instanceof com.mongodb.MongoException.DuplicateKey)) {
-	// logger.error("can't process event batch ", e);
-	// logger.debug("can't process doc:{}", docs);
-	// }
-	// for (DBObject doc : docs) {
-	// try {
-	// dbRef.getCollection(collectionNameVar).insert(doc, WriteConcern.SAFE);
-	// } catch (Exception ee) {
-	// if (!(e instanceof com.mongodb.MongoException.DuplicateKey)) {
-	// logger.error(doc.toString());
-	// logger.error("can't process events, drop it!", ee);
-	// }
-	// }
-	// }
-	// }
-	// }
-	// }
-
 	private Status parseEvents() throws EventDeliveryException {
 		Status status = Status.READY;
 		Channel channel = getChannel();
 		Transaction tx = null;
-		// Map<String, List<DBObject>> eventMap = new HashMap<String,
-		// List<DBObject>>();
 		Map<String, List<DBObject>> upsertMap = new HashMap<String, List<DBObject>>();
 		try {
 			tx = channel.getTransaction();
@@ -245,7 +179,8 @@ public class MongoSink extends AbstractSink implements Configurable {
 				Event event = channel.take();
 				if (event == null) {
 					status = Status.BACKOFF;
-					break;
+					tx.rollback();
+					return status;
 				} else {
 					processEvent(upsertMap, event);
 				}
@@ -277,9 +212,7 @@ public class MongoSink extends AbstractSink implements Configurable {
 
 		for (Map.Entry<String, List<DBObject>> entry : eventMap.entrySet()) {
 			List<DBObject> docs = entry.getValue();
-			if (logger.isDebugEnabled()) {
-				logger.debug("collection: {}, length: {}", entry.getKey(), docs.size());
-			}
+			logger.debug("collection: {}, length: {}", entry.getKey(), docs.size());
 
 			int separatorIndex = entry.getKey().indexOf(NAMESPACE_SEPARATOR);
 			String eventDb = entry.getKey().substring(0, separatorIndex);
@@ -298,34 +231,18 @@ public class MongoSink extends AbstractSink implements Configurable {
 			}
 			DBCollection collection = dbRef.getCollection(collectionName);
 			for (DBObject doc : docs) {
-				if (logger.isDebugEnabled()) {
-					logger.debug("doc: {}", doc);
-				}
-				DBObject query = BasicDBObjectBuilder.start().add("ysbid", doc.get("ysbid")).get();
-				// BasicDBObjectBuilder doc_builder =
-				// BasicDBObjectBuilder.start();
-				// if (doc.keySet().contains(OP_INC)) {
-				// doc_builder.add(OP_INC, doc.get(OP_INC));
-				// }
-				// if (doc.keySet().contains(OP_SET)) {
-				// doc_builder.add(OP_SET, doc.get(OP_SET));
-				// }
-				// if (doc.keySet().contains(OP_SET_ON_INSERT)) {
-				// doc_builder.add(OP_SET_ON_INSERT, doc.get(OP_SET_ON_INSERT));
-				// }
-				// doc = doc_builder.get();
-
 				logger.debug("===doc:{}", doc);
+				// 以设备id更新
+				DBObject object = (DBObject) doc.get(OP_ADD_TO_SET);
+				DBObject query = BasicDBObjectBuilder.start()
+						.add(FieldName.field_deviceId, object.get(FieldName.field_deviceId)).get();
 
-				// logger.debug("query: {}", query);
-				// logger.debug("new doc: {}", doc);
-				CommandResult result = collection.update(query, doc, true, false, WriteConcern.SAFE).getLastError();
+				CommandResult result = collection.update(query, doc, true, false, WriteConcern.ACKNOWLEDGED).getLastError();
 				if (result.ok()) {
 					String errorMessage = result.getErrorMessage();
 					if (errorMessage != null) {
 						logger.error("can't upsert documents with error: {} ", errorMessage);
 						logger.error("with exception", result.getException());
-						throw new MongoException(errorMessage);
 					}
 				} else {
 					logger.error("can't get last error");
@@ -385,41 +302,36 @@ public class MongoSink extends AbstractSink implements Configurable {
 			documents = new ArrayList<DBObject>(batchSize);
 		}
 
+		// DBObject eventJson;
+		// byte[] body = event.getBody();
+		// if (autoWrap) {
+		// eventJson = new BasicDBObject(wrapField, new String(body));
+		// } else {
+		// try {
+		// eventJson = (DBObject) JSON.parse(new String(body));
+		// // eventJson.put(OP_SET, "$set");
+		// } catch (Exception e) {
+		// logger.error("Can't parse events: " + new String(body), e);
+		// return documents;
+		// }
+		// }
+
 		DBObject eventJson;
-		byte[] body = event.getBody();
-		if (autoWrap) {
-			eventJson = new BasicDBObject(wrapField, new String(body));
-		} else {
-			try {
-				eventJson = (DBObject) JSON.parse(new String(body));
-				// eventJson.put(OP_SET, "$set");
-			} catch (Exception e) {
-				logger.error("Can't parse events: " + new String(body), e);
-				return documents;
-			}
-		}
-		if (!event.getHeaders().containsKey(OPERATION) && timestampField != null) {
-			Date timestamp;
-			if (eventJson.containsField(timestampField)) {
-				try {
-					String dateText = (String) eventJson.get(timestampField);
-					timestamp = dateTimeFormatter.parseDateTime(dateText).toDate();
-					eventJson.removeField(timestampField);
-				} catch (Exception e) {
-					logger.error("can't parse date ", e);
-
-					timestamp = new Date();
-				}
-			} else {
-				timestamp = new Date();
-			}
-			eventJson.put(timestampField, timestamp);
+		try {
+			eventJson = HandlerFactory.build(event);
+		} catch (UnsupportedEncodingException e1) {
+			logger.error(e1.getMessage(), e1);
+			return documents;
 		}
 
-		for (Map.Entry<String, String> entry : extraInfos.entrySet()) {
-			eventJson.put(entry.getKey(), entry.getValue());
+		// for (Map.Entry<String, String> entry : extraInfos.entrySet()) {
+		// eventJson.put(entry.getKey(), entry.getValue());
+		// }
+		
+		if(eventJson == null){
+			return documents;
 		}
-
+		
 		documents.add(eventJson);
 
 		return documents;
