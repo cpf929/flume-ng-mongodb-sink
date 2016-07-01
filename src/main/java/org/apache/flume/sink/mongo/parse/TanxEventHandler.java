@@ -56,7 +56,7 @@ public class TanxEventHandler implements EventHandler {
 		}
 		// mac
 		String mac = device.getString(FieldName.Tanx.mac);
-		if (StringUtils.isNotBlank(mac)) {
+		if (StringUtils.isNotBlank(mac) && mac.contains(":")) {
 			setOnInsertObj.append(FieldName.field_mac, mac).append(FieldName.field_macMd5, DigestUtils.md5Hex(mac))
 					.append(FieldName.field_macSha1, DigestUtils.sha1Hex(mac));
 		}
@@ -82,8 +82,12 @@ public class TanxEventHandler implements EventHandler {
 							.append(FieldName.field_longitude, device.getString(FieldName.Tanx.longitude)));
 		}
 
+		builder.add(MongoSink.OP_ADD_TO_SET, addToSetObj);
+
+		BasicDBObject appInfo = new BasicDBObject();
 		// app
 		if (StringUtils.isNotBlank(mobile.getString(FieldName.Tanx.package_name))) {
+
 			BasicDBObject appObj = new BasicDBObject();
 			appObj.append(FieldName.field_packageName, mobile.getString(FieldName.Tanx.package_name));
 			if (StringUtils.isNotBlank(mobile.getString(FieldName.Tanx.app_name))) {
@@ -97,10 +101,19 @@ public class TanxEventHandler implements EventHandler {
 						.getJSONObject(0).getString(FieldName.Tanx.id));
 			}
 
-			addToSetObj.append(FieldName.field_appList, appObj);
+			if (StringUtils.isNotBlank(jsonObject.getString(FieldName.bidRequestTime))) {
+				appObj.append(FieldName.lastUseTime, jsonObject.getString(FieldName.bidRequestTime));
+			}
+
+			// mongo 不支持包含点. 的做key， 替换为_下划线
+			appInfo.append(FieldName.field_appList + mobile.getString(FieldName.Tanx.package_name).replace(".", "_"),
+					appObj);
 		}
 
-		builder.add(MongoSink.OP_ADD_TO_SET, addToSetObj);
+		// app需要记录最后使用日期， 每次都更新
+		if (!appInfo.isEmpty()) {
+			builder.add(MongoSink.OP_SET, appInfo);
+		}
 
 		return builder.get();
 	}
@@ -125,6 +138,14 @@ public class TanxEventHandler implements EventHandler {
 		}
 
 		return result;
+	}
+
+	public static void main(String[] args) {
+
+		BasicDBObject dbObject = new BasicDBObject();
+		System.out.println(dbObject.isEmpty());
+		dbObject.append("aaa", "aaadd");
+		System.out.println(dbObject.isEmpty());
 	}
 
 }

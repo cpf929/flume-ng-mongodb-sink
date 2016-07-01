@@ -233,7 +233,7 @@ public class MongoSink extends AbstractSink implements Configurable {
 			for (DBObject doc : docs) {
 				logger.debug("===doc:{}", doc);
 				// 以设备id更新
-				DBObject object = (DBObject) doc.get(OP_ADD_TO_SET);
+				DBObject object = (DBObject) doc.get(OP_SET_ON_INSERT);
 				DBObject query = BasicDBObjectBuilder.start()
 						.add(FieldName.field_deviceId, object.get(FieldName.field_deviceId)).get();
 

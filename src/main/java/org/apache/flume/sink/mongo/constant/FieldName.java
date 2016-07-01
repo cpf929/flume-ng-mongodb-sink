@@ -20,9 +20,10 @@ public abstract class FieldName {
 	public static final String field_platform = "platform";
 	public static final String field_gender = "gender";
 	public static final String field_age = "age";
-	public static final String field_appList = "appList";
+	public static final String field_appList = "appList.";
 	public static final String field_appCategorys = "appCategorys";
 	public static final String field_appName = "appName";
+	public static final String lastUseTime = "lastUseTime";
 	public static final String field_packageName = "packageName";
 	public static final String field_version = "version";
 
