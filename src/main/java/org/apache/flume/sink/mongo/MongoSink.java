@@ -175,6 +175,8 @@ public class MongoSink extends AbstractSink implements Configurable {
 			tx = channel.getTransaction();
 			tx.begin();
 
+			long start = System.currentTimeMillis();
+
 			for (int i = 0; i < batchSize; i++) {
 				Event event = channel.take();
 				if (event == null) {
@@ -185,6 +187,8 @@ public class MongoSink extends AbstractSink implements Configurable {
 					processEvent(upsertMap, event);
 				}
 			}
+
+			logger.debug("read and handler event cost time:{}", System.currentTimeMillis() - start);
 			doUpsert(upsertMap);
 
 			tx.commit();
@@ -205,31 +209,36 @@ public class MongoSink extends AbstractSink implements Configurable {
 	}
 
 	private void doUpsert(Map<String, List<DBObject>> eventMap) {
+
+		long start = System.currentTimeMillis();
+
 		if (eventMap.isEmpty()) {
 			logger.debug("eventMap is empty");
 			return;
 		}
 
+		// Warning: please change the WriteConcern level if you need high
+		// datum consistence.
+		DB dbRef = mongo.getDB(dbName);
+		if (authentication_enabled) {
+			boolean authResult = dbRef.authenticate(username, password.toCharArray());
+			if (!authResult) {
+				logger.error("Failed to authenticate user: " + username + " with password: " + password
+						+ ". Unable to write events.");
+				return;
+			}
+		}
+		DBCollection collection = dbRef.getCollection(collectionName);
+
 		for (Map.Entry<String, List<DBObject>> entry : eventMap.entrySet()) {
 			List<DBObject> docs = entry.getValue();
-			logger.debug("collection: {}, length: {}", entry.getKey(), docs.size());
+			logger.info("collection: {}, length: {}", entry.getKey(), docs.size());
 
-			int separatorIndex = entry.getKey().indexOf(NAMESPACE_SEPARATOR);
-			String eventDb = entry.getKey().substring(0, separatorIndex);
-			String collectionName = entry.getKey().substring(separatorIndex + 1);
+			// int separatorIndex = entry.getKey().indexOf(NAMESPACE_SEPARATOR);
+			// String eventDb = entry.getKey().substring(0, separatorIndex);
+			// String collectionName = entry.getKey().substring(separatorIndex +
+			// 1);
 
-			// Warning: please change the WriteConcern level if you need high
-			// datum consistence.
-			DB dbRef = mongo.getDB(eventDb);
-			if (authentication_enabled) {
-				boolean authResult = dbRef.authenticate(username, password.toCharArray());
-				if (!authResult) {
-					logger.error("Failed to authenticate user: " + username + " with password: " + password
-							+ ". Unable to write events.");
-					return;
-				}
-			}
-			DBCollection collection = dbRef.getCollection(collectionName);
 			for (DBObject doc : docs) {
 				logger.debug("===doc:{}", doc);
 				// 以设备id更新
@@ -237,7 +246,8 @@ public class MongoSink extends AbstractSink implements Configurable {
 				DBObject query = BasicDBObjectBuilder.start()
 						.add(FieldName.field_deviceId, object.get(FieldName.field_deviceId)).get();
 
-				CommandResult result = collection.update(query, doc, true, false, WriteConcern.ACKNOWLEDGED).getLastError();
+				CommandResult result = collection.update(query, doc, true, false, WriteConcern.ERRORS_IGNORED)
+						.getLastError();
 				if (result.ok()) {
 					String errorMessage = result.getErrorMessage();
 					if (errorMessage != null) {
@@ -249,9 +259,12 @@ public class MongoSink extends AbstractSink implements Configurable {
 				}
 			}
 		}
+
+		logger.debug("upsert cost time :{}", System.currentTimeMillis() - start);
 	}
 
 	private void processEvent(Map<String, List<DBObject>> eventMap, Event event) {
+
 		switch (model) {
 		case SINGLE:
 			putSingleEvent(eventMap, event);
@@ -264,6 +277,7 @@ public class MongoSink extends AbstractSink implements Configurable {
 		default:
 			logger.error("can't support model: {}, please check configuration.", model);
 		}
+
 	}
 
 	private void putDynamicEvent(Map<String, List<DBObject>> eventMap, Event event) {
@@ -327,11 +341,11 @@ public class MongoSink extends AbstractSink implements Configurable {
 		// for (Map.Entry<String, String> entry : extraInfos.entrySet()) {
 		// eventJson.put(entry.getKey(), entry.getValue());
 		// }
-		
-		if(eventJson == null){
+
+		if (eventJson == null) {
 			return documents;
 		}
-		
+
 		documents.add(eventJson);
 
 		return documents;

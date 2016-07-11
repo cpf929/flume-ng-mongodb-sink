@@ -81,7 +81,7 @@ public class TanxEventHandler implements EventHandler {
 					new BasicDBObject(FieldName.field_latitude, device.getString(FieldName.Tanx.latitude))
 							.append(FieldName.field_longitude, device.getString(FieldName.Tanx.longitude)));
 		}
-
+		
 		builder.add(MongoSink.OP_ADD_TO_SET, addToSetObj);
 
 		BasicDBObject appInfo = new BasicDBObject();
@@ -109,7 +109,11 @@ public class TanxEventHandler implements EventHandler {
 			appInfo.append(FieldName.field_appList + mobile.getString(FieldName.Tanx.package_name).replace(".", "_"),
 					appObj);
 		}
-
+		
+		if(addToSetObj.isEmpty() && appInfo.isEmpty()){
+			return null;
+		}
+		
 		// app需要记录最后使用日期， 每次都更新
 		if (!appInfo.isEmpty()) {
 			builder.add(MongoSink.OP_SET, appInfo);
