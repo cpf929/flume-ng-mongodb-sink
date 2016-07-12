@@ -30,48 +30,53 @@ public class TanxEventHandler implements EventHandler {
 		String deviceId = device.getString(FieldName.Tanx.device_id);
 
 		// 新增， 不更新的
-		BasicDBObject setOnInsertObj = new BasicDBObject(FieldName.field_deviceId, deviceId)
+		BasicDBObject setObj = new BasicDBObject(FieldName.field_deviceId, deviceId)
 				.append(FieldName.field_deviceIdMd5, DigestUtils.md5Hex(deviceId))
 				.append(FieldName.field_deviceIdSha1, DigestUtils.sha1Hex(deviceId));
 
 		// brand
 		if (StringUtils.isNotBlank(device.getString(FieldName.Tanx.brand))) {
-			setOnInsertObj.append(FieldName.field_brand, device.getString(FieldName.Tanx.brand));
+			setObj.append(FieldName.field_brand, device.getString(FieldName.Tanx.brand));
 		}
 		// model
 		if (StringUtils.isNotBlank(device.getString(FieldName.Tanx.model))) {
-			setOnInsertObj.append(FieldName.field_model, device.getString(FieldName.Tanx.model));
+			setObj.append(FieldName.field_model, device.getString(FieldName.Tanx.model));
 		}
 		// platform
 		if (StringUtils.isNotBlank(device.getString(FieldName.Tanx.platform))) {
-			setOnInsertObj.append(FieldName.field_platform, device.getString(FieldName.Tanx.platform));
+			setObj.append(FieldName.field_platform, device.getString(FieldName.Tanx.platform));
 		}
 		// os
 		if (StringUtils.isNotBlank(device.getString(FieldName.Tanx.os))) {
-			setOnInsertObj.append(FieldName.field_os, device.getString(FieldName.Tanx.os));
+			setObj.append(FieldName.field_os, device.getString(FieldName.Tanx.os));
 		}
 		// os_version
 		if (StringUtils.isNotBlank(device.getString(FieldName.Tanx.os_version))) {
-			setOnInsertObj.append(FieldName.field_osVersion, device.getString(FieldName.Tanx.os_version));
+			setObj.append(FieldName.field_osVersion, device.getString(FieldName.Tanx.os_version));
 		}
 		// mac
 		String mac = device.getString(FieldName.Tanx.mac);
 		if (StringUtils.isNotBlank(mac) && mac.contains(":")) {
-			setOnInsertObj.append(FieldName.field_mac, mac).append(FieldName.field_macMd5, DigestUtils.md5Hex(mac))
+			setObj.append(FieldName.field_mac, mac).append(FieldName.field_macMd5, DigestUtils.md5Hex(mac))
 					.append(FieldName.field_macSha1, DigestUtils.sha1Hex(mac));
 		}
 		// device_size
 		if (StringUtils.isNotBlank(device.getString(FieldName.Tanx.device_size))) {
-			setOnInsertObj.append(FieldName.field_deviceSize, device.getString(FieldName.Tanx.device_size));
+			setObj.append(FieldName.field_deviceSize, device.getString(FieldName.Tanx.device_size));
 		}
 
-		builder.add(MongoSink.OP_SET_ON_INSERT, setOnInsertObj);
+		// builder.add(MongoSink.OP_SET_ON_INSERT, setObj);
 
 		BasicDBObject addToSetObj = new BasicDBObject();
 
 		// ip
 		if (StringUtils.isNotBlank(jsonObject.getString(FieldName.Tanx.ip))) {
 			addToSetObj.append(FieldName.field_ipList, jsonObject.getString(FieldName.Tanx.ip));
+		}
+
+		// 城市名称
+		if (StringUtils.isNotBlank(jsonObject.getString(FieldName.Tanx.city))) {
+			addToSetObj.append(FieldName.field_cityList, jsonObject.getString(FieldName.Tanx.city));
 		}
 
 		// 追加的数据，geo
@@ -81,10 +86,9 @@ public class TanxEventHandler implements EventHandler {
 					new BasicDBObject(FieldName.field_latitude, device.getString(FieldName.Tanx.latitude))
 							.append(FieldName.field_longitude, device.getString(FieldName.Tanx.longitude)));
 		}
-		
+
 		builder.add(MongoSink.OP_ADD_TO_SET, addToSetObj);
 
-		BasicDBObject appInfo = new BasicDBObject();
 		// app
 		if (StringUtils.isNotBlank(mobile.getString(FieldName.Tanx.package_name))) {
 
@@ -106,18 +110,16 @@ public class TanxEventHandler implements EventHandler {
 			}
 
 			// mongo 不支持包含点. 的做key， 替换为_下划线
-			appInfo.append(FieldName.field_appList + mobile.getString(FieldName.Tanx.package_name).replace(".", "_"),
+			setObj.append(FieldName.field_appList + mobile.getString(FieldName.Tanx.package_name).replace(".", "_"),
 					appObj);
 		}
-		
-		if(addToSetObj.isEmpty() && appInfo.isEmpty()){
+
+		if (addToSetObj.isEmpty()) {
 			return null;
 		}
-		
+
 		// app需要记录最后使用日期， 每次都更新
-		if (!appInfo.isEmpty()) {
-			builder.add(MongoSink.OP_SET, appInfo);
-		}
+		builder.add(MongoSink.OP_SET, setObj);
 
 		return builder.get();
 	}

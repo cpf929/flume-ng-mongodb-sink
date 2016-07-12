@@ -26,6 +26,7 @@ import org.joda.time.format.DateTimeParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.mongodb.BasicDBObject;
 import com.mongodb.BasicDBObjectBuilder;
 import com.mongodb.CommandResult;
 import com.mongodb.DB;
@@ -66,6 +67,7 @@ public class MongoSink extends AbstractSink implements Configurable {
 	public static final String PK = "_id";
 	public static final String OP_INC = "$inc";
 	public static final String OP_SET = "$set";
+	public static final String OP_OR = "$or";
 	public static final String OP_SET_ON_INSERT = "$setOnInsert";
 	public static final String OP_ADD_TO_SET = "$addToSet";
 
@@ -241,10 +243,18 @@ public class MongoSink extends AbstractSink implements Configurable {
 
 			for (DBObject doc : docs) {
 				logger.debug("===doc:{}", doc);
-				// 以设备id更新
-				DBObject object = (DBObject) doc.get(OP_SET_ON_INSERT);
-				DBObject query = BasicDBObjectBuilder.start()
-						.add(FieldName.field_deviceId, object.get(FieldName.field_deviceId)).get();
+				// 以deviceId, 或者deviceIdSha1， 或者deviceIdMD5作为条件更新
+				DBObject object = (DBObject) doc.get(OP_SET);
+
+				List<BasicDBObject> list = new ArrayList<BasicDBObject>();
+				if (object.get(FieldName.field_deviceId) != null) {
+					list.add(new BasicDBObject(FieldName.field_deviceId, object.get(FieldName.field_deviceId)));
+				}
+				if (object.get(FieldName.field_deviceIdSha1) != null) {
+					list.add(new BasicDBObject(FieldName.field_deviceIdSha1, object.get(FieldName.field_deviceIdSha1)));
+				}
+
+				DBObject query = BasicDBObjectBuilder.start().add(MongoSink.OP_OR, list).get();
 
 				CommandResult result = collection.update(query, doc, true, false, WriteConcern.ERRORS_IGNORED)
 						.getLastError();
@@ -260,7 +270,7 @@ public class MongoSink extends AbstractSink implements Configurable {
 			}
 		}
 
-		logger.debug("upsert cost time :{}", System.currentTimeMillis() - start);
+		logger.info("upsert cost time :{}", System.currentTimeMillis() - start);
 	}
 
 	private void processEvent(Map<String, List<DBObject>> eventMap, Event event) {

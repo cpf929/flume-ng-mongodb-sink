@@ -11,6 +11,7 @@ public abstract class FieldName {
 	public static final String field_latitude = "latitude";
 	public static final String field_longitude = "longitude";
 	public static final String field_ipList = "ipList";
+	public static final String field_cityList = "cityList";
 	public static final String field_mac = "mac";
 	public static final String field_macMd5 = "macMd5";
 	public static final String field_macSha1 = "macSha1";
@@ -49,7 +50,43 @@ public abstract class FieldName {
 		public static final String longitude = "longitude";
 		public static final String latitude = "latitude";
 		public static final String id = "id";
+		public static final String city = "city";
 
+	}
+	
+	public static class Adview {
+		public static final String infoType = "infoType";
+		//设备信息
+		public static final String device = "device";
+		public static final String didsha1 = "didsha1";
+		public static final String dpidsha1 = "dpidsha1";
+		public static final String os = "os";
+		public static final String make = "make";
+		public static final String model = "model";
+		public static final String osv = "osv";
+		public static final String sh = "sh";
+		public static final String sw = "sw";
+		public static final String geo = "geo";
+		public static final String lat = "lat";
+		public static final String lon = "lon";
+		public static final String ip = "ip";
+		
+		//app信息
+		public static final String app = "app";
+		public static final String bundle = "bundle";
+		public static final String cat = "cat";
+		public static final String name = "name";
+		public static final String ver = "ver";
+		
+		public static final String user = "user";
+		public static final String gender = "gender";
+		
+		
+		public static final String city = "city";
+		public static final String cityName = "cityName";
+		
+		
+		
 	}
 
 }
