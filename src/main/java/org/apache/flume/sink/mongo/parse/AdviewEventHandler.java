@@ -34,6 +34,11 @@ public class AdviewEventHandler implements EventHandler {
 			deviceId = device.getString(FieldName.Adview.dpidsha1);
 		}
 
+		// 过滤非法deviceId
+		if (deviceId.equalsIgnoreCase("c02c705e98588f724ca046ac59cafece65501e36") || deviceId.contains(":")) {
+			return null;
+		}
+
 		// 新增， 不更新的
 		BasicDBObject setObj = new BasicDBObject(FieldName.field_deviceIdSha1, deviceId);
 

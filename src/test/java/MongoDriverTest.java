@@ -16,6 +16,7 @@ import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import com.mongodb.MongoClient;
+import com.mongodb.WriteConcern;
 import com.mongodb.WriteResult;
 
 public class MongoDriverTest {
@@ -29,7 +30,7 @@ public class MongoDriverTest {
 		// "password", "localhost", 27017, "mydb");
 		// MongoClientURI uri = new MongoClientURI(url);
 		// client = new MongoClient(uri);
-		client = new MongoClient("192.168.1.113", 27017);
+		client = new MongoClient("localhost", 27017);
 		db = client.getDB("dmp_info");
 	}
 
@@ -185,7 +186,32 @@ public class MongoDriverTest {
 		WriteResult result = coll.update(query, doc, true, true);
 		System.out.println(result.getN());
 	}
-
+	
+	
+	@Test
+	public void testBatchInserts(){
+		
+		long start = System.currentTimeMillis();
+		
+		DBCollection coll = db.getCollection("log");
+		
+		
+		List<DBObject> list = new ArrayList<DBObject>();
+		
+		for (int i = 0; i <= 100; i++) {
+			//10000条插入一次
+			for (int j = 0; j <= 10000; j++) {
+				list.add(new BasicDBObject("name", i).append("age", j).append("app_name", "腾讯新闻"));
+			}
+			coll.insert(list, WriteConcern.ERRORS_IGNORED);
+			list.clear();
+			
+		}
+		
+		System.out.println(System.currentTimeMillis() - start);
+		
+	}
+	
 	@Test
 	public void findByCon() {
 

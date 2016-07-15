@@ -28,7 +28,13 @@ public class TanxEventHandler implements EventHandler {
 		JSONObject mobile = jsonObject.getJSONObject(FieldName.Tanx.mobile);
 		JSONObject device = mobile.getJSONObject(FieldName.Tanx.device);
 		String deviceId = device.getString(FieldName.Tanx.device_id);
-
+		
+		
+		//过滤非法deviceId
+		if(deviceId.equalsIgnoreCase("000000000000000") || deviceId.contains(":")){
+			return null;
+		}
+		
 		// 新增， 不更新的
 		BasicDBObject setObj = new BasicDBObject(FieldName.field_deviceId, deviceId)
 				.append(FieldName.field_deviceIdMd5, DigestUtils.md5Hex(deviceId))
