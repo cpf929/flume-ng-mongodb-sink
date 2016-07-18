@@ -31,7 +31,7 @@ public class TanxEventHandler implements EventHandler {
 		
 		
 		//过滤非法deviceId
-		if(deviceId.equalsIgnoreCase("000000000000000") || deviceId.contains(":")){
+		if(deviceId.contains("000000000000000") || deviceId.contains(":")){
 			return null;
 		}
 		
@@ -158,6 +158,9 @@ public class TanxEventHandler implements EventHandler {
 		System.out.println(dbObject.isEmpty());
 		dbObject.append("aaa", "aaadd");
 		System.out.println(dbObject.isEmpty());
+		
+		
+		System.out.println("aaa:aaaddd:fff".contains(":"));
 	}
 
 }

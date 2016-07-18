@@ -198,10 +198,10 @@ public class MongoDriverTest {
 		
 		List<DBObject> list = new ArrayList<DBObject>();
 		
-		for (int i = 0; i <= 100; i++) {
+		for (int i = 0; i <= 10; i++) {
 			//10000条插入一次
-			for (int j = 0; j <= 10000; j++) {
-				list.add(new BasicDBObject("name", i).append("age", j).append("app_name", "腾讯新闻"));
+			for (int j = 0; j <= 10; j++) {
+				list.add(new BasicDBObject("name", i + ":" + j).append("age", j).append("app_name", "腾讯新闻"));
 			}
 			coll.insert(list, WriteConcern.ERRORS_IGNORED);
 			list.clear();

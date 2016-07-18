@@ -20,6 +20,10 @@
 	<properties>
 		<mongo-java.version>2.10.1</mongo-java.version>
 		<flume.version>1.6.0</flume.version>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+		<maven.compiler.encoding>UTF-8</maven.compiler.encoding>
+
 	</properties>
 
 	<dependencies>
@@ -82,14 +86,18 @@
 					<groups>unit</groups>
 				</configuration>
 			</plugin>
+
+
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>3.0</version>
+				<version>3.1</version>
 				<configuration>
 					<verbose>true</verbose>
 					<fork>true</fork>
-					<compilerVersion>1.7</compilerVersion>
+					<source>1.7</source>
+					<target>1.7</target>
+					<showWarnings>true</showWarnings>
 				</configuration>
 			</plugin>
 			<plugin>

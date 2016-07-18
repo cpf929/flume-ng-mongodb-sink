@@ -2,6 +2,7 @@ package org.apache.flume.sink.mongo.parse;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.flume.sink.mongo.MongoSink;
+import org.apache.flume.sink.mongo.constant.Constants;
 import org.apache.flume.sink.mongo.constant.FieldName;
 import org.apache.flume.sink.mongo.constant.InfoType;
 
@@ -65,9 +66,11 @@ public class AdviewEventHandler implements EventHandler {
 			setObj.append(FieldName.field_deviceSize,
 					device.getString(FieldName.Adview.sh) + "x" + device.getString(FieldName.Adview.sw));
 		}
-		// 性别
+		// 性别 M或者 F
 		JSONObject user = jsonObject.getJSONObject(FieldName.Adview.user);
-		if (user != null && StringUtils.isNotBlank(user.getString(FieldName.Adview.gender))) {
+		if (user != null && StringUtils.isNotBlank(user.getString(FieldName.Adview.gender))
+				&& Constants.genderList.contains(user.getString(FieldName.Adview.gender))) {
+
 			setObj.append(FieldName.field_gender, user.getString(FieldName.Adview.gender));
 		}
 
