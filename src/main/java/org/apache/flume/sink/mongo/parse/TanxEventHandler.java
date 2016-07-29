@@ -4,6 +4,8 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.flume.sink.mongo.MongoSink;
 import org.apache.flume.sink.mongo.constant.FieldName;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.alibaba.fastjson.JSONObject;
 import com.mongodb.BasicDBObject;
@@ -17,7 +19,10 @@ import com.mongodb.DBObject;
  *
  */
 public class TanxEventHandler implements EventHandler {
-
+	
+	
+	private final Logger logger = LoggerFactory.getLogger(getClass());
+	
 	public DBObject buildDbObject(JSONObject jsonObject) {
 
 		if (!check(jsonObject)) {
@@ -32,6 +37,7 @@ public class TanxEventHandler implements EventHandler {
 		
 		//过滤非法deviceId
 		if(deviceId.contains("000000000000000") || deviceId.contains(":")){
+			logger.info("=== ignore deviceId:{}", deviceId);
 			return null;
 		}
 		

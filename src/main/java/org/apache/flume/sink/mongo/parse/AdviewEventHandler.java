@@ -5,6 +5,8 @@ import org.apache.flume.sink.mongo.MongoSink;
 import org.apache.flume.sink.mongo.constant.Constants;
 import org.apache.flume.sink.mongo.constant.FieldName;
 import org.apache.flume.sink.mongo.constant.InfoType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.alibaba.fastjson.JSONObject;
 import com.mongodb.BasicDBObject;
@@ -18,7 +20,9 @@ import com.mongodb.DBObject;
  *
  */
 public class AdviewEventHandler implements EventHandler {
-
+	
+	private final Logger logger = LoggerFactory.getLogger(getClass());
+	
 	public DBObject buildDbObject(JSONObject jsonObject) {
 
 		if (!check(jsonObject)) {
@@ -37,6 +41,7 @@ public class AdviewEventHandler implements EventHandler {
 
 		// 过滤非法deviceId
 		if (deviceId.equalsIgnoreCase("c02c705e98588f724ca046ac59cafece65501e36") || deviceId.contains(":")) {
+			logger.info("=== ignore deviceId:{}", deviceId);
 			return null;
 		}
 
